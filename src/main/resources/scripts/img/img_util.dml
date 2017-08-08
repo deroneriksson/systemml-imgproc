@@ -1,0 +1,341 @@
+#-------------------------------------------------------------
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+# 
+#   http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+#-------------------------------------------------------------
+
+/*
+ * Misc utilities that can be used with matrices representing images.
+ */
+
+splitVertical = function(matrix[double] im) return (matrix[double] om) {
+  /*
+   * Splits a matrix vertically and reverse the two halves.
+   *
+   * Inputs:
+   *  - im: Input matrix
+   *
+   * Outputs:
+   *  - om: Output matrix
+   */
+  c=ncol(im);
+  mid=round(c/2);
+  om=cbind(im[,mid:c], im[,1:mid-1]);
+}
+
+rotate90 = function(matrix[double] im) return (matrix[double] om) {
+  /*
+   * Rotates a matrix clockwise by 90 degrees.
+   *
+   * Inputs:
+   *  - im: Input matrix
+   *
+   * Outputs:
+   *  - om: Output matrix
+   */
+  om=t(rev(im));
+}
+
+rotate180 = function(matrix[double] im) return (matrix[double] om) {
+  /*
+   * Rotates a matrix by 180 degrees.
+   *
+   * Inputs:
+   *  - im: Input matrix
+   *
+   * Outputs:
+   *  - om: Output matrix
+   */
+  om=t(rev(t(rev(im))));
+}
+
+rotate270 = function(matrix[double] im) return (matrix[double] om) {
+  /*
+   * Rotates a matrix counterclockwise by 90 degrees.
+   *
+   * Inputs:
+   *  - im: Input matrix
+   *
+   * Outputs:
+   *  - om: Output matrix
+   */
+  om=rev(t(im));
+}
+
+flipHorizontal = function(matrix[double] im) return (matrix[double] om) {
+  /*
+   * Flips a matrix horizontally.
+   *
+   * Inputs:
+   *  - im: Input matrix
+   *
+   * Outputs:
+   *  - om: Output matrix
+   */
+  om=t(rev(t(im)));
+}
+
+flipVertical = function(matrix[double] im) return (matrix[double] om) {
+  /*
+   * Flips a matrix vertically.
+   *
+   * Inputs:
+   *  - im: Input matrix
+   *
+   * Outputs:
+   *  - om: Output matrix
+   */
+  om=rev(im);
+}
+
+transpose = function(matrix[double] im) return (matrix[double] om) {
+  /*
+   * Transpose of a matrix (rotate and flip).
+   *
+   * Inputs:
+   *  - im: Input matrix
+   *
+   * Outputs:
+   *  - om: Output matrix
+   */
+  om=t(im);
+}
+
+splitChannelsJava = externalFunction(matrix[double] d) return (matrix[double] alpha, matrix[double] red, matrix[double] green, matrix[double] blue)
+  /*
+   * Split ARGB channels from an input matrix using a Java UDF and return the individual channels.
+   *
+   * Inputs:
+   *  - d: Input matrix
+   *
+   * Outputs:
+   *  - a: Alpha channel
+   *  - r: Red color channel
+   *  - g: Green color channel
+   *  - b: Blue color channel
+   */
+  implemented in (classname="org.apache.sysml.image.udf.SplitChannels", exectype="mem");
+
+combineChannelsJava = externalFunction(matrix[double] alpha, matrix[double] red, matrix[double] green, matrix[double] blue) return (matrix[double] d)
+  /*
+   * Combine ARGB channels using a Java UDF and return the result.
+   *
+   * Inputs:
+   *  - a: Alpha channel
+   *  - r: Red color channel
+   *  - g: Green color channel
+   *  - b: Blue color channel
+   *
+   * Outputs:
+   *  - d: Matrix that is the result of combining the ARGB channels
+   */
+  implemented in (classname="org.apache.sysml.image.udf.CombineChannels", exectype="mem");
+
+splitChannels = function(matrix[double] d) return (matrix[double] a, matrix[double] r, matrix[double] g, matrix[double] b) {
+  /*
+   * Split ARGB channels from an input matrix and return the individual channels.
+   *
+   * Inputs:
+   *  - d: Input matrix
+   *
+   * Outputs:
+   *  - a: Alpha channel
+   *  - r: Red color channel
+   *  - g: Green color channel
+   *  - b: Blue color channel
+   */
+  y = nrow(d)
+  x = ncol(d)
+  a = matrix(0,rows=y,cols=x)
+  r = matrix(0,rows=y,cols=x)
+  g = matrix(0,rows=y,cols=x)
+  b = matrix(0,rows=y,cols=x)
+
+  b = d %% 256
+  m1 = (d - b) %/% 256
+  g = m1 %% 256
+  m2 = (m1 - g) %/% 256
+  r = m2 %% 256
+  m3 = (m2 - r) %/% 256
+  m4 = m3 %% 256
+  a = ((m4>=128)*(m4-256)) + ((m4<128)*m4)
+}
+
+combineChannels = function(matrix[double] a, matrix[double] r, matrix[double] g, matrix[double] b) return (matrix[double] d) {
+  /*
+   * Combine ARGB channels and return the result.
+   *
+   * Inputs:
+   *  - a: Alpha channel
+   *  - r: Red color channel
+   *  - g: Green color channel
+   *  - b: Blue color channel
+   *
+   * Outputs:
+   *  - d: Matrix that is the result of combining the ARGB channels
+   */
+  d = a*16777216 + r*65536 + g*256 + b;
+}
+
+shiftColorChannel = function(matrix[double] channel, double shift) return (matrix[double] channel) {
+  /*
+   * Shift the values in a color (RGB) channel. If greater than 255, set to 255. If less than 0, set to 0.
+   *
+   * Inputs:
+   *  - channel: Input matrix
+   *  - shift: Amount to shift
+   *
+   * Outputs:
+   *  - channel: Output matrix
+   */
+  channel = channel + shift;
+  channel = max(0,channel);
+  channel = min(255,channel);
+}
+
+shiftAlphaChannel = function(matrix[double] channel, double shift) return (matrix[double] channel) {
+  /*
+   * Shift the values in an alpha channel. Adjust accordingly for two's complement (Java int is two's complement) sign bit.
+   * 
+   *
+   * Inputs:
+   *  - channel: Input matrix
+   *  - shift: Amount to shift
+   *
+   * Outputs:
+   *  - d: Output matrix
+   */
+  channel = channel + shift;
+  d = ((channel>=128)*(channel-256)) + ((channel<128)*channel)
+  d = max(-128,d);
+  d = min(127,d);
+}
+
+color = function(string c, int w, int h) return (matrix[double] a, matrix[double] r, matrix[double] g, matrix[double] b) {
+  /*
+   * Return ARGB channels of size w x h. A channel is -1 (255 in two's complement).
+   *
+   * Inputs:
+   *  - c: Which color to return (white, silver, gray, black, red, maroon, yellow, olive, lime, green, aqua, teal, blue, navy, fuchsia, purple).
+   *  - w: Width of matrices to return
+   *  - h: Height of matrices to return
+   *
+   * Outputs:
+   *  - a: Alpha channel
+   *  - r: Red color channel
+   *  - g: Green color channel
+   *  - b: Blue color channel
+   */
+  m = matrix(
+    "255 255 255 " + # white
+    "192 192 192 " + # silver
+    "128 128 128 " + # gray
+    "  0   0   0 " + # black
+    "255   0   0 " + # red
+    "128   0   0 " + # maroon
+    "255 255   0 " + # yellow
+    "128 128   0 " + # olive
+    "  0 255   0 " + # lime
+    "  0 128   0 " + # green
+    "  0 255 255 " + # aqua
+    "  0 128 128 " + # teal
+    "  0   0 255 " + # blue
+    "  0   0 128 " + # navy
+    "255   0 255 " + # fuchsia
+    "128   0 128 ",  # purple
+    rows=16, cols=3);
+  x=1;
+  if (c == "white") { x=1;
+  } else if (c == "silver") { x=2;
+  } else if (c == "gray") { x=3;
+  } else if (c == "black") { x=4;
+  } else if (c == "red") { x=5;
+  } else if (c == "maroon") { x=6;
+  } else if (c == "yellow") { x=7;
+  } else if (c == "olive") { x=8;
+  } else if (c == "lime") { x=9;
+  } else if (c == "green") { x=10;
+  } else if (c == "aqua") { x=11;
+  } else if (c == "teal") { x=12;
+  } else if (c == "blue") { x=13;
+  } else if (c == "navy") { x=14
+  } else if (c == "fuchsia") { x=15;
+  } else if (c == "purple") { x=16;
+  }
+  # -1 is 0x11111111 ('255') in two's complement (for alpha channel)
+  a=matrix(-1,rows=h,cols=w);
+  r=matrix(as.scalar(m[x,1]),rows=h,cols=w);
+  g=matrix(as.scalar(m[x,2]),rows=h,cols=w);
+  b=matrix(as.scalar(m[x,3]),rows=h,cols=w);
+}
+
+layer = function(matrix[double] im1, matrix[double] im2) return (matrix[double] om) {
+  /*
+   * Layer one matrix over the other (im2 over im1).
+   *
+   * Inputs:
+   *  - im1: Input matrix 1
+   *  - im2: Input matrix 2
+   *
+   * Outputs:
+   *  - om: Output matrix
+   */
+  [a1,r1,g1,b1] = splitChannels(im1);
+  [a2,r2,g2,b2] = splitChannels(im2);
+  om = matrix(0,rows=nrow(im1),cols=ncol(im1));
+  for (y in 1:nrow(im1)) {
+    for (x in 1:ncol(im1)) {
+      a1s = as.scalar(a1[y,x])
+      a2s = as.scalar(a2[y,x])
+      r1s = as.scalar(r1[y,x])
+      r2s = as.scalar(r2[y,x])
+      g1s = as.scalar(g1[y,x])
+      g2s = as.scalar(g2[y,x])
+      b1s = as.scalar(b1[y,x])
+      b2s = as.scalar(b2[y,x])
+      if (a2s < 0) { a2s = a2s + 256 }
+      if (a2s == 0) {
+        om[y,x] = a1s*16777216 + r1s*65536 + g1s*256 + b1s
+      } else if (a2s == 255) {
+        if (a2s > 127) { a2s = a2s - 256 }
+        om[y,x] = a2s*16777216 + r2s*65536 + g2s*256 + b2s
+      } else {
+        a2factor = a2s/255;
+        a1factor = 1 - a2factor;
+        opaque = -1; # '255' in two's complement
+        red = (r2s*a2factor) + (r1s*a1factor)
+        green = (g2s*a2factor) + (g1s*a1factor)
+        blue = (b2s*a2factor) + (b1s*a1factor)
+        om[y,x] = opaque*16777216 + red*65536 + green*256 + blue
+      }
+    }
+  }
+}
+
+demo = function(matrix[double] im) return (matrix[double] om) {
+  /*
+   * Demo.
+   *
+   * Inputs:
+   *  - im: Input matrix
+   *
+   * Outputs:
+   *  - om: Output matrix
+   */
+  om=t(rev(t(rev(im))));
+}

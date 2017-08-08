@@ -1,0 +1,29 @@
+# Mac
+.DS_Store
+
+# Eclipse
+.classpath
+.project
+.settings/
+.externalToolBuilders/
+maven-eclipse.xml
+
+# Intellij
+.idea/
+.idea_modules/
+*.iml
+*.iws
+
+# checksum files
+*.crc
+
+# Build artifacts
+target/
+
+# Working directory and scratch space
+temp/*
+scratch_space/
+
+# Spark
+**/metastore_db
+derby.log
